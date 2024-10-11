@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 .hero-bg{
-  background-image:linear-gradient(rgba(0,0,0,.8),rgba(0,0,0,.1)),url("hero.png") ;/*This gives the dark color that is fading*/
+  background-image:linear-gradient(rgba(0,0,0,.8),rgba(0,0,0,.1)),url("/hero.png") ;/*This gives the dark color that is fading*/
 }
 
 .shimmer{
@@ -36,4 +36,11 @@
   right:10vw;
   top:-10vw;
   z-index:-1;
+}
+
+/* index.css */
+body, html {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
 }
