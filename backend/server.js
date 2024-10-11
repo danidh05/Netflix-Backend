@@ -32,7 +32,13 @@ if (ENV_VARS.NODE_ENV === "production") {
 }
 //This is our client app
 
+app.get("/ping", (req, res) => {
+  res.status(200).send("OK");
+});
+
 app.listen(PORT || 5000, () => {
   console.log("Server started on http://localhost:" + PORT);
   connectDB();
 });
+
+// In your server.js or app.js
