@@ -11,7 +11,7 @@ const Navbar = () => {
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
   const { contentType, setContentType } = useContentStore();
-  console.log("Content Type: ", contentType);
+  //console.log("Content Type: ", contentType);
 
   return (
     <header className="max-w-6xl mx-auto flex flex-wrap items-center justify-between p-4 h-20">

@@ -26,7 +26,7 @@ const WatchPage = () => {
     const getTrailers = async () => {
       try {
         const res = await axios.get(`/api/v1/${contentType}/${id}/trailers`);
-        console.log("Full API Response:", res.data);
+        //console.log("Full API Response:", res.data);
         setTrailers(res.data.trailers); // Assuming the videos are in `results`
       } catch (error) {
         console.error("Error fetching trailers:", error);
