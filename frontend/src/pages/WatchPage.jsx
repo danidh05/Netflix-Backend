@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
-import { useContentStore } from "../store/content";
+import { useContentStore } from "../store/content"; // Zustand store for contentType
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -11,47 +11,48 @@ import { formatReleaseDate } from "../utils/dateFunction";
 import WatchPageSkeleton from "../components/skeletons/WatchPageSkeleton";
 
 const WatchPage = () => {
-  const { id } = useParams(); //To take the params in the url , their name is what we wrote in the routes
+  const { id } = useParams(); // Fetch params from the URL
   const [trailers, setTrailers] = useState([]);
-  const [currentTrailerIdx, setCurrentTrailerIdx] = useState(0); //current trailer index we have because they have more than one trailer
-
-  const [loading, setLoading] = useState(true); //to have a loading state
-  const [content, setContent] = useState({}); //either movie details or tv show details
+  const [currentTrailerIdx, setCurrentTrailerIdx] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [content, setContent] = useState({});
   const [similarContent, setSimilarContent] = useState([]);
-  const { contentType } = useContentStore();
-
+  const { contentType } = useContentStore(); // Getting content type (movie/tv show)
+  const [magnetLink, setMagnetLink] = useState("");
+  const [isMagnetLoading, setIsMagnetLoading] = useState(false);
   const sliderRef = useRef(null);
 
+  const [isStreaming, setIsStreaming] = useState(false); // New state to track streaming status
+  const videoRef = useRef(null);
+
+  // Fetch Trailers
   useEffect(() => {
     const getTrailers = async () => {
       try {
         const res = await axios.get(`/api/v1/${contentType}/${id}/trailers`);
-        //console.log("Full API Response:", res.data);
-        setTrailers(res.data.trailers); // Assuming the videos are in `results`
+        setTrailers(res.data.trailers);
       } catch (error) {
         console.error("Error fetching trailers:", error);
-        if (error.message.includes("404")) {
-          setTrailers([]);
-        }
+        setTrailers([]);
       }
     };
     getTrailers();
   }, [contentType, id]);
 
+  // Fetch Similar Content
   useEffect(() => {
     const getSimilarContent = async () => {
       try {
         const res = await axios.get(`/api/v1/${contentType}/${id}/similar`);
         setSimilarContent(res.data.similar);
       } catch (error) {
-        if (error.message.includes("404")) {
-          setSimilarContent([]);
-        }
+        setSimilarContent([]);
       }
     };
     getSimilarContent();
   }, [contentType, id]);
 
+  // Fetch Movie or TV Show Details
   useEffect(() => {
     const getContentDetails = async () => {
       try {
@@ -59,16 +60,68 @@ const WatchPage = () => {
         setContent(res.data.content);
       } catch (error) {
         console.error("Error fetching content details:", error);
-        if (error.message.includes("404")) {
-          setContent(null); // Set content to null if not found
-        }
+        setContent(null);
       } finally {
-        setLoading(false); // End loading whether it succeeds or fails
+        setLoading(false);
       }
     };
     getContentDetails();
   }, [contentType, id]);
 
+  // Fetch Magnet Link
+  const fetchMagnetLink = async () => {
+    setIsMagnetLoading(true);
+    try {
+      console.log("Fetching magnet link...");
+      const magnetRes = await axios.get(
+        `/api/v1/torrent/fetch-magnet/${contentType}/${id}`
+      );
+      const { magnetLink } = magnetRes.data;
+      if (magnetLink) {
+        console.log("Magnet link fetched:", magnetLink);
+        const encodedMagnetLink = encodeURIComponent(magnetLink); // Encode the magnet link
+        setMagnetLink(encodedMagnetLink); // Set the encoded magnet link
+
+        console.log("Triggering fetchStream with magnet:", magnetLink);
+        await fetchStream(magnetLink); // Trigger fetchStream function to get video stream
+      } else {
+        console.error("No magnet link found in response.");
+      }
+    } catch (error) {
+      console.error("Error fetching magnet link:", error);
+      setMagnetLink(null);
+    } finally {
+      setIsMagnetLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (magnetLink && videoRef.current) {
+      fetchStream(magnetLink); // Only call fetchStream if videoRef is ready
+    }
+  }, [magnetLink, videoRef]);
+
+  // Fetch video stream from the backend
+  const fetchStream = async (magnet) => {
+    try {
+      const encodedMagnet = encodeURIComponent(magnet);
+      const streamUrl = `/api/v1/torrent/stream/${encodedMagnet}`;
+      console.log("Fetching stream from:", streamUrl);
+
+      if (videoRef.current) {
+        videoRef.current.src = streamUrl; // Browser will automatically send the Range header for chunks
+        console.log("Stream attached to video element directly.");
+      } else {
+        console.error("Video element not available.");
+      }
+
+      setIsStreaming(true); // Set streaming status to true once video stream is ready
+    } catch (error) {
+      console.error("Error fetching video stream:", error);
+    }
+  };
+
+  // Scroll Logic for Trailers
   const handleNext = () => {
     if (currentTrailerIdx < trailers.length - 1)
       setCurrentTrailerIdx(currentTrailerIdx + 1);
@@ -79,10 +132,9 @@ const WatchPage = () => {
 
   const scrollLeft = () => {
     if (sliderRef.current) {
-      //sliderRef.current is the DOM element that holds my scrollable content
       sliderRef.current.scrollBy({
-        left: -sliderRef.current.offsetWidth, // specifies how far to scroll along x-axis
-        behavior: "smooth", //to ensure it animates smoothly
+        left: -sliderRef.current.offsetWidth,
+        behavior: "smooth",
       });
     }
   };
@@ -95,16 +147,15 @@ const WatchPage = () => {
     }
   };
 
+  // Loading State
   if (loading)
     return (
       <div className="min-h-screen bg-black p-10">
         <WatchPageSkeleton />
       </div>
     );
-  // console.log("TRAILERS,", trailers);
-  // console.log("similarContent,", similarContent);
-  // console.log("ContentDetails,", content);
 
+  // Content Not Found State
   if (content === null) {
     return (
       <div className="bg-black text-white h-screen">
@@ -170,8 +221,7 @@ const WatchPage = () => {
           )}
         </div>
 
-        {/* movie details */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-20  max-w-6xl mx-auto">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-20 max-w-6xl mx-auto">
           <div className="mb-4 md:mb-0">
             <h2 className="text-5xl font-bold text-balance">
               {content?.title || content?.name}
@@ -189,7 +239,27 @@ const WatchPage = () => {
               )}{" "}
             </p>
             <p className="mt-4 text-lg">{content?.overview}</p>
+
+            <button
+              onClick={fetchMagnetLink}
+              className="mt-4 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded"
+              disabled={isMagnetLoading || isStreaming}
+            >
+              {isMagnetLoading ? "Loading..." : "Watch Movie"}
+            </button>
+
+            {magnetLink && (
+              <div className="mt-6">
+                <h4 className="text-lg font-semibold">Watch Here:</h4>
+                <video
+                  ref={videoRef}
+                  controls
+                  className="w-full h-auto rounded-lg"
+                />
+              </div>
+            )}
           </div>
+
           <img
             src={ORIGINAL_IMG_BASE_URL + content?.poster_path}
             alt="Poster Image"
@@ -199,13 +269,13 @@ const WatchPage = () => {
 
         {similarContent.length > 0 && (
           <div className="mt-12 max-w-5xl mx-auto relative">
-            <h3 className="text-3xl font-bold mb-4">Similar Movies/Tv Show</h3>
+            <h3 className="text-3xl font-bold mb-4">Similar Movies/TV Show</h3>
             <div
               className="flex overflow-x-scroll scrollbar-hide gap-4 pb-4 group"
               ref={sliderRef}
             >
               {similarContent.map((content) => {
-                if (content.poster_path === null) return;
+                if (content.poster_path === null) return null;
                 return (
                   <Link
                     key={content.id}
@@ -223,6 +293,7 @@ const WatchPage = () => {
                   </Link>
                 );
               })}
+
               <ChevronRight
                 className="absolute top-1/2 -translate-y-1/2 right-2 w-8 h-8 opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer bg-red-600 text-white rounded-full"
                 onClick={scrollRight}
@@ -238,5 +309,4 @@ const WatchPage = () => {
     </div>
   );
 };
-
 export default WatchPage;
