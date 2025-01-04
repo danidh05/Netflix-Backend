@@ -3,13 +3,13 @@ import WebTorrent from "webtorrent";
 import { ENV_VARS } from "../config/envVars.js";
 
 export const fetchMagnetLink = async (req, res) => {
-  const { contentType, id } = req.params;
+  const { id } = req.params;
 
   try {
     // First, fetch the IMDb ID from TMDb API
     console.log("Fetching IMDb ID from TMDb...");
     const tmdbResponse = await axios.get(
-      `https://api.themoviedb.org/3/${contentType}/${id}`,
+      `https://api.themoviedb.org/3/movie/${id}`,
       {
         params: { api_key: ENV_VARS.TMDB_API_KEY2 },
       }
@@ -60,10 +60,10 @@ export const streamMovie = (req, res) => {
   const magnet = decodeURIComponent(req.params.magnet); // Decode the magnet link
   const client = new WebTorrent();
 
-  console.log("Adding magnet link to WebTorrent client...", magnet); // Log the magnet link
+  console.log("Adding magnet link to WebTorrent client...", magnet);
 
   client.add(magnet, (torrent) => {
-    console.log("Torrent files available:", torrent.files); // Log the available torrent files
+    console.log("Torrent files available:", torrent.files);
 
     // Find the first .mp4 or .mkv file in the torrent
     const file = torrent.files.find(
@@ -90,11 +90,12 @@ export const streamMovie = (req, res) => {
       const chunkSize = end - start + 1;
       console.log(`Streaming video chunk ${start}-${end} of ${fileSize}`);
 
-      res.setHeader("Content-Range", `bytes ${start}-${end}/${fileSize}`);
-      res.setHeader("Accept-Ranges", "bytes");
-      res.setHeader("Content-Length", chunkSize);
-      res.setHeader("Content-Type", "video/mp4");
-      res.status(206); // HTTP status for partial content
+      res.writeHead(206, {
+        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunkSize,
+        "Content-Type": "video/mp4",
+      });
 
       // Stream the chunked video data
       const stream = file.createReadStream({ start, end });
@@ -110,7 +111,7 @@ export const streamMovie = (req, res) => {
         if (!res.headersSent) {
           res.status(500).json({ success: false, message: err.message });
         }
-        client.destroy(); // Ensure WebTorrent client is destroyed on error
+        client.destroy();
       });
     } else {
       console.error("No .mp4 or .mkv file found in torrent.");
@@ -119,11 +120,12 @@ export const streamMovie = (req, res) => {
           .status(404)
           .json({ success: false, message: "Video file not found" });
       }
+      client.destroy();
     }
   });
 
   client.on("error", (err) => {
-    console.error("WebTorrent client error:", err.message); // Log errors
+    console.error("WebTorrent client error:", err.message);
     if (!res.headersSent) {
       res.status(500).json({ success: false, message: err.message });
     }

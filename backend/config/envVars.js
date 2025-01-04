@@ -10,4 +10,6 @@ export const ENV_VARS = {
   TMDB_API_KEY: process.env.TMDB_API_KEY,
   TMDB_API_KEY2: process.env.TMDB_API_KEY2,
   RAPIDAPI_KEY: process.env.RAPIDAPI_KEY,
+  JACKETT_API_URL: process.env.JACKETT_API_URL,
+  JACKETT_API_KEY: process.env.JACKETT_API_KEY,
 };

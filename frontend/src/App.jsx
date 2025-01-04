@@ -7,7 +7,7 @@ import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "./store/authUser";
 import { useEffect } from "react";
 import { Loader } from "lucide-react";
-import WatchPage from "./pages/WatchPage";
+import WatchPage from "./pages/watchpage/WatchPage";
 import SearchPage from "./pages/SearchPage";
 import SearchHistoryPage from "./pages/SearchHistoryPage";
 import NotFoundPage from "./pages/NotFoundPage";
